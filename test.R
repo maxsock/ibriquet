@@ -24,16 +24,17 @@ engagement <- function(df){
 progRate <- function(df,user){
   tryCatch(
     {
-  x <- df[c("User","Type","Week")]
-  x <- data.frame(table(x))
-  x <- x[x$User==user,c("User","Type","Week","Freq")]
-  y <-x[x$Type=="Cheated","Freq"]+x[x$Type=="On time","Freq"]
-  
-  
-  y <- (mean(na.exclude(x[x$Type=="Behaviour","Freq"])))/y*100
-  y <- y[!is.infinite(y)]
-  z <- 1:length(y)
-  lo <- loess(y~z)
+      x <- df[c("User","Type","WeekNumber")]
+      x <- data.frame(table(x))
+      x <- x[x$User==user,c("User","Type","WeekNumber","Freq")]
+      y <-x[x$Type=="Cheated","Freq"]+x[x$Type=="On time","Freq"]
+      y <- y[y!=0]
+      behavior <- (sum(x[x$Type=="Behaviour","Freq"]))
+      y <- (behavior-y)/behavior*100
+      y <- y[!is.infinite(y)]
+      
+      z <- 1:length(y)
+      lo <- loess(y~z)
   return (renderPlot({
     plot(y, main="Average progress rate per week", xlab = "Week number",ylab = "Progress rate (%)")
     lines(predict(lo),type="l",col="red")}))
