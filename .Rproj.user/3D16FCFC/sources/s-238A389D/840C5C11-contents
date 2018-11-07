@@ -15,8 +15,8 @@ df1$Time <- strptime(df1$Time,format="%d/%m/%Y %H:%M")
 #df1$Time <- substring(df1$Time,0,7)
 df1$Day <- weekdays(as.Date(df1$Time))
 df1$Month <- substring(df1$Time,0,7)
-y <- table(df1[df1$User=="Rémi Dubost","Day"])
-x <- table(df1[df1$User!="Rémi Dubost","Day"])
+y <- table(df1[df1$User=="RÃ©mi Dubost","Day"])
+x <- table(df1[df1$User!="RÃ©mi Dubost","Day"])
 z <- df1[c("User","Day")]
 zz <- data.frame(table(z))
 #zzz <- aggregate(Freq ~ Day,zz,mean)
@@ -27,10 +27,10 @@ boxplot(Freq ~ Day,zz)
 df3 <- data.frame(zz) 
 zz <- df2[c("Start Date","Name")]
 zz$Week <- week(zz$`Start Date`)
-zz <- zz[zz$Name=="Rémi Dubost","Week"]
+zz <- zz[zz$Name=="RÃ©mi Dubost","Week"]
 df1$Week <- week(df1$Time)
 
-user="Étienne Toussaint"
+user="Ãtienne Toussaint"
 x <- df1[c("User","Week")]
 x <- data.frame(table(x))
 y <-x[x$Freq>0,c("Freq","Week")]
@@ -149,7 +149,7 @@ barplot(y,main="Progress per age bin compared to the behavior week",xlab = "Age 
 
 
 # PROGRESSION PER USER
-user="Étienne Toussaint"
+user="Ãtienne Toussaint"
 x <- df1[c("User","Type","WeekNumber")]
 x <- data.frame(table(x))
 x <- x[x$User==user,c("User","Type","WeekNumber","Freq")]

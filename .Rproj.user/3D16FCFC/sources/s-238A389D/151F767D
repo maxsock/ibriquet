@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1541602085086.000,
+    "dirty" : false,
+    "encoding" : "ISO8859-1",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "151F767D",
+    "lastKnownWriteTime" : 1541599936,
+    "last_content_update" : 1541599936,
+    "path" : "~/GitHub/ibriquet/cleaning.R",
+    "project_path" : "cleaning.R",
+    "properties" : {
+        "cursorPosition" : "16,12",
+        "scrollLine" : "0"
+    },
+    "relative_order" : 4,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1541600020558.000,
+    "dirty" : false,
+    "encoding" : "ISO8859-1",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "776E09C",
+    "lastKnownWriteTime" : 1541604392,
+    "last_content_update" : 1541604392516,
+    "path" : "~/GitHub/ibriquet/project.R",
+    "project_path" : "project.R",
+    "properties" : {
+        "cursorPosition" : "118,48",
+        "scrollLine" : "104"
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}
