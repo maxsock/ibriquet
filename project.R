@@ -1,6 +1,18 @@
 library(shiny)
 library(shinydashboard)
-library("readxl")
+library(readxl)
+library(shinyjs)
+library(lubridate)
+library(data.table)
+library(dplyr)
+library(plyr)
+library(bda)
+library(tools)
+setwd("/Users/maximiliensock/ibriquet/")
+source("test.R")
+source("cleaning.R")
+
+
 options(stringsAsFactors = FALSE)
 sidebar <- dashboardSidebar(
   sidebarMenu(
@@ -11,6 +23,7 @@ sidebar <- dashboardSidebar(
 )
 
 uploadPage <- fluidPage(
+  useShinyjs(),
   
   # App title ----
   titlePanel("Uploading Files"),
@@ -29,13 +42,7 @@ uploadPage <- fluidPage(
                            ".csv")),
       # Horizontal line ----
       tags$hr(),
-     
-      radioButtons("type", "File Type",
-                   choices = c(csv = "csv",
-                               excel = "xlsx"),
-                   selected = "csv"),
-      # Horizontal line ----
-      tags$hr(),
+      
       
       # Input: Checkbox if file has header ----
       checkboxInput("header", "Header", TRUE),
@@ -45,12 +52,14 @@ uploadPage <- fluidPage(
                    choices = c(Comma = ",",
                                Semicolon = ";",
                                Tab = "\t"),
-                   selected = ",")
+                   selected = ","),
+      
+      actionButton("uploadButton", "Ajouter")
       
     ),
     
     # Main panel for displaying outputs ----
-    mainPanel(
+    mainPanel( 
       
       # Output: Data file ----
       #tableOutput("contents")
@@ -68,7 +77,15 @@ singleUserPage <- fluidPage(
   titlePanel("Single User"),
   selectInput("name",
               "User",
-              c("Select User"))
+              c("Select User")),
+  plotOutput(outputId = "distPlot"),
+  plotOutput(outputId = "progRate")
+)
+
+allUsersPage <- fluidPage(
+  titlePanel("All Users"),
+  plotOutput(outputId = "dailyConsumption"),
+  plotOutput(outputId = "engagement")
 )
 
 ui <- dashboardPage(
@@ -76,49 +93,100 @@ ui <- dashboardPage(
   sidebar,
   dashboardBody(tabItems(
     tabItem(tabName = "upload",
-          uploadPage
+            uploadPage
     ),
     
-    tabItem(tabName = "allUsers",
-            h2("All Users")
-    ),
+    tabItem(tabName = "allUsers",allUsersPage),
     tabItem(tabName = "singleUser",singleUserPage)
   ))
 )
 
 server <- function(input, output, session) {
   
-  output$contents <- DT::renderDataTable(DT::datatable({
-
-    req(input$file1)
+  observeEvent(input$uploadButton,{reset("file1");hide("contents")})
+  observeEvent(input$type,{
+    shinyjs::show("contents")
+    if(input$type == "xlsx"){
+      hide("sep");
+    } else {
+      shinyjs::show("sep");
+    }})
+  
+  
+  readCSV <- function(dfLogs,dfSurvey){
+    dfLogs <- cleanData(dfLogs);
+    output$dailyConsumption <- dailyCons(dfLogs);
+    output$engagement <- engagement(dfLogs);
     
-    tryCatch(
-      {
-        if(input$type == "csv"){
-          df1 <- read.csv(input$file1$datapath,
-                         header = input$header,
-                         sep = input$sep, fileEncoding = "MACROMAN")
-          return(head(df1))
-        } else {
-          df2 <- read_excel(input$file1$datapath)
-          updateSelectInput(session, "name",
-                            choices = sort(df2$Name),
-                            selected = head(sort(df2$Name), 1)
-          )
-          return(head(df2))
-        }
-      },
-      error = function(e) {
-       
-         # return a safeError if a parsing error occurs
-        stop(safeError(e))
-      }
+    observeEvent(input$name,{
+      output$distPlot <- plotFunction(dfLogs,input$name)
+      output$progRate <- progRate(dfLogs,input$name)
+    })
+    updateSelectInput(session, "name",
+                      choices = sort(dfSurvey$Name),
+                      selected = head(sort(dfSurvey$Name), 1)
     )
     
-    
-    
-  }))
+    return(dfLogs)
+  }
+  values <- reactiveValues(dfLogs = NULL,dfSurvey = NULL,uploaded = 0)
+  
+  
+  
+  
+  
+  
+  observeEvent(input$file1,{
+    tryCatch(
+      {
+        if(file_ext(input$file1$datapath)=="csv"){
+          isolate({
+            print("csv file")
+            observeEvent(input$sep,{ print("observe separator"); values$dfLogs <- read.csv(input$file1$datapath,
+                                                                                           header = input$header,
+                                                                                           sep = input$sep, fileEncoding = "MACROMAN")
+            output$contents <- DT::renderDataTable(DT::datatable({
+              return(values$dfLogs);
+            }))
+            })
+            observeEvent(input$uploadButton,{print("uploaded csv");
+              values$uploaded = values$uploaded + 1})
+          })
+        } else {
+          isolate({
+            print("excel")
+            values$dfSurvey <- read_excel(input$file1$datapath)
+            output$contents <- DT::renderDataTable(DT::datatable({
+              return(values$dfSurvey);
+            }))
+          })
+          #  observeEvent(input$uploadButton,{values$uploaded = values$uploaded + 1})
+        }
+        
+      },
+      error = function(e) {
+        
+        # return a safeError if a parsing error occurs
+        stop(safeError(e))
+      }
+    )})
+  
+  observeEvent(values$uploaded,{
+    print(values$uploaded)
+    if(values$uploaded == 2)
+      readCSV(values$dfLogs,values$dfSurvey)
+  })
+  
+  
+  
+  
+  
   
 }
+
+
+
+
+
 
 shinyApp(ui, server)
