@@ -79,8 +79,16 @@ tmp1 <- plyr::rename(tmp1,c("Time.x"="Time"))
 tmp1 <- select(tmp1,"User","Time","WeekNumber")
 df1 <- merge(x=df1,y=tmp1, by=c("User","Time"))
 df1 <- df1[df1$User!="William Beauregard",]
+df1 <- df1[df1$User!="Marc Gaumont",]
+df1 <- df1[df1$User!="Joseph Toussaint",]
+df1 <- df1[df1$User!="Wilfried Piaget",]
 
 
+
+tempLength <-  aggregate(df1$WeekNumber, by = list(df1$User), max)
+tempLength <- plyr::rename(tempLength,c("Group.1"="User"))
+df1 <- merge(x=df1,y=tempLength, by=c("User"))
+df1 <- df1[df1$x>4,]
 
 
 
@@ -103,8 +111,11 @@ lo <- loess(y~z)
 
 #PROGRESS PER AGE
 temp1 <- df1[c("User","Type","WeekNumber")]
-temp2 <- df2[c("Age","Name")]
-temp2 <- plyr::rename(temp2,c("Name"="User"))
+df2 <- plyr::rename(df2,c("Name"="User"))
+temp2 <- df2[c("Age","User")]
+temp3 <- unique(df1[c("User")])
+temp2 <- merge(x = temp2, y = temp3, by = "User")
+
 interv <- pretty(temp2$Age)
 temp <- cut(temp2$Age, breaks=interv, right = FALSE)
 
@@ -117,11 +128,10 @@ freqByBin <- data.frame(table(freqByBin$Age))
 df3 <- merge(x = temp1, y = temp2, by = "User")
 df5 <- df3[c("Type","Age")]
 df3 <- df3[c("User","Type","Age", "WeekNumber")]
-#dfMaxWeekNb <- df3[c("User",max("WeekNumber"))]
-#df3 <- merge(x = df3, y = dfMaxWeekNb, by = "User")
 df4 <- aggregate(df3$WeekNumber, by = list(df3$Age,df3$User), max)
 df4 <- aggregate(df4$x,by = list(df4$Group.1), mean)
 df5 <- data.frame(table(df5))
+
 y <-df5[df5$Type=="Cheated","Freq"]+df5[df5$Type=="On time","Freq"]
 y <- y[y!=0]
 y <- y/df4$x
@@ -134,7 +144,7 @@ behavior <- behavior[behavior!=0]
 y <- (behavior-y)/behavior*100
 y[is.infinite(y)]<-0
 names(y)=freqByBin$Var1
-barplot(y)
+barplot(y,main="Progress per age bin compared to the behavior week",xlab = "Age bin",ylab = "Progress rate (%)")
 
 
 
