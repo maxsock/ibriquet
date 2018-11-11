@@ -8,10 +8,12 @@ library(dplyr)
 library(plyr)
 library(bda)
 library(tools)
-setwd("C:/Users/Lisa/Documents/GitHub/ibriquet")
-source("test.R")
+library(stringr)
+library(ggplot2)
+#setwd("C:/Users/Lisa/Documents/GitHub/ibriquet")
+source("functions.R")
 source("cleaning.R")
-
+theme_update(plot.title = element_text(hjust = 0.5,face = "bold"))
 
 options(stringsAsFactors = FALSE)
 sidebar <- dashboardSidebar(
@@ -43,16 +45,7 @@ uploadPage <- fluidPage(
       # Horizontal line ----
       tags$hr(),
       
-      
-      # Input: Checkbox if file has header ----
-      checkboxInput("header", "Header", TRUE),
-      
-      # Input: Select separator ----
-      radioButtons("sep", "Separator",
-                   choices = c(Comma = ",",
-                               Semicolon = ";",
-                               Tab = "\t"),
-                   selected = ","),
+
       
       actionButton("uploadButton", "Ajouter")
       
@@ -63,7 +56,7 @@ uploadPage <- fluidPage(
       
       # Output: Data file ----
       #tableOutput("contents")
-      box( title = "File Preview", status = "primary",width = "300",solidHeader = T, 
+      box(title = "File Preview", status = "primary",width = "300",solidHeader = T, 
            column(width = 12,
                   DT::dataTableOutput("contents"),style = "height:400px; overflow-y: scroll;overflow-x: scroll;"
            ))
@@ -75,13 +68,38 @@ uploadPage <- fluidPage(
 
 singleUserPage <- fluidPage(
   titlePanel("Single User"),
-  selectInput("name",
-              "User",
-              c("Select User")),
-  plotOutput(outputId = "distPlot"),
-  plotOutput(outputId = "progRate")
-)
+  sidebarLayout(
+    
+    # Sidebar panel for inputs ----
+    sidebarPanel(
+      
+      selectInput("name",
+                  "User",
+                  c("Select User")),
+      htmlOutput(outputId = "infos"),
+      tags$hr(),
+      sliderInput("weekNumber", "Week Number:",
+                  min = 0, max = 4,
+                  value = 0)
+      
+    ),
+    
+    # Main panel for displaying outputs ----
+    mainPanel( 
+      tabsetPanel(
+        tabPanel("Weekly Stats", { 
+         fluidRow(splitLayout(cellWidths = c("50%","50%"), plotOutput(outputId = "lastWeek"),plotOutput(outputId = "distPlot")))
+          }),
+        tabPanel("Overall Stats", {plotOutput(outputId = "progRate")})
+       
+     
 
+    )
+    
+  )
+
+  
+)
 allUsersPage <- fluidPage(
   titlePanel("All Users"),
   plotOutput(outputId = "dailyConsumption"),
@@ -104,66 +122,77 @@ ui <- dashboardPage(
 
 server <- function(input, output, session) {
   
-  observeEvent(input$uploadButton,{reset("file1");hide("contents")})
-  observeEvent(input$type,{
-    shinyjs::show("contents")
-    if(input$type == "xlsx"){
-      hide("sep");
-    } else {
-      shinyjs::show("sep");
-    }})
-  
-  
-  readCSV <- function(dfLogs,dfSurvey){
-    dfLogs <- cleanData(dfLogs);
+  # Used to reset the upload field
+  observeEvent(input$uploadButton,{reset("file1");})
+ 
+  # Calls all the functions used to display information
+  cleanData <- function(dfLogs,dfSurvey){
+    
+    # Clean the data frames
+    dfLogs <- cleanLogs(dfLogs);
+    dfSurvey <- cleanSurvey(dfSurvey);
+    
+    # Graphs for all the users
     output$dailyConsumption <- dailyCons(dfLogs);
     output$engagement <- engagement(dfLogs);
     output$progPerAgeBin <- progPerAgeBin(dfLogs, dfSurvey);
     
+    # Graph per user
     observeEvent(input$name,{
-      output$distPlot <- plotFunction(dfLogs,input$name)
-      output$progRate <- progRate(dfLogs,input$name)
+      if(input$name!="Select User"){
+        values$maxWeek <- getmaxWeek(dfLogs,input$name)
+        updateSliderInput(session,"weekNumber",max=values$maxWeek)
+        output$distPlot <- plotFunction(dfLogs,input$name,input$weekNumber)
+        output$progRate <- progRate(dfLogs,input$name)
+        output$infos <- getInfos(dfSurvey,input$name)
+        output$lastWeek <- lastWeekCons(dfLogs,input$name,input$weekNumber)
+        
+      }
+        
     })
+    observeEvent({input$type
+      input$weekNumber},{
+      if(input$name!="Select User"){
+      output$distPlot <- plotFunction(dfLogs,input$name,input$weekNumber)
+      output$lastWeek <- lastWeekCons(dfLogs,input$name,input$weekNumber)
+      }
+    })
+    
+    # Fill the select input with the filtered names of users
     updateSelectInput(session, "name",
-                      choices = sort(dfSurvey$Name),
-                      selected = head(sort(dfSurvey$Name), 1)
+                      choices = sort(unique(dfLogs$User)),
+                      selected = head(sort(unique(dfLogs$User)), 1)
     )
     
     return(dfLogs)
   }
-  values <- reactiveValues(dfLogs = NULL,dfSurvey = NULL,uploaded = 0)
   
   
   
+  # Reactive values used as global updatable values
+  values <- reactiveValues(dfLogs = NULL,dfSurvey = NULL,uploaded = 0,maxWeek=0)
   
   
-  
+  # Read the input fime depending on the type
   observeEvent(input$file1,{
     tryCatch(
       {
-        if(file_ext(input$file1$datapath)=="csv"){
-          isolate({
-            print("csv file")
-            observeEvent(input$sep,{ print("observe separator"); values$dfLogs <- read.csv(input$file1$datapath,
-                                                                                           header = input$header,
-                                                                                           sep = input$sep, fileEncoding = "MACROMAN")
-            output$contents <- DT::renderDataTable(DT::datatable({
-              return(values$dfLogs);
-            }))
+            observeEvent(input$uploadButton,{
+              if(file_ext(input$file1$datapath)=="csv"){
+              values$dfLogs <- read.csv(input$file1$datapath, header = TRUE,sep = ";", fileEncoding = "MACROMAN")
+              output$contents <- DT::renderDataTable(DT::datatable({
+                return(values$dfLogs);
+              }))
+              }
+              else{
+                values$dfSurvey <- read_excel(input$file1$datapath)
+                output$contents <- DT::renderDataTable(DT::datatable({
+                  return(values$dfSurvey);
+                }))
+              }
+              values$uploaded = values$uploaded + 1
             })
-            observeEvent(input$uploadButton,{print("uploaded csv");
-              values$uploaded = values$uploaded + 1})
-          })
-        } else {
-          isolate({
-            print("excel")
-            values$dfSurvey <- read_excel(input$file1$datapath)
-            output$contents <- DT::renderDataTable(DT::datatable({
-              return(values$dfSurvey);
-            }))
-          })
-          #  observeEvent(input$uploadButton,{values$uploaded = values$uploaded + 1})
-        }
+        
         
       },
       error = function(e) {
@@ -173,22 +202,15 @@ server <- function(input, output, session) {
       }
     )})
   
+  
+  
+  # If both files are uploaded we can clean the data
   observeEvent(values$uploaded,{
-    print(values$uploaded)
     if(values$uploaded == 2)
-      readCSV(values$dfLogs,values$dfSurvey)
+      cleanData(values$dfLogs,values$dfSurvey)
   })
   
-  
-  
-  
-  
-  
 }
-
-
-
-
 
 
 shinyApp(ui, server)

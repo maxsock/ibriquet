@@ -5,7 +5,8 @@ library(plyr)
 library(lubridate)
 library(bda)
 library(readxl)
-setwd("C:/Users/Lisa/Documents/GitHub/ibriquet")
+#setwd("C:/Users/Lisa/Documents/GitHub/ibriquet")
+setwd("/Users/maximiliensock/ibriquet")
 
 source("cleaning.R")
 
@@ -56,19 +57,30 @@ y <- y[!is.infinite(y)]
 z <- 1:length(y)
 lo <- loess(y~z)
 
-#LOADING DATA
-df1 <- read.csv("C:/Users/Lisa/Documents/GitHub/ibriquet/logs.csv",
+################################################ LOADING DATA  #####################################################################
+df1 <- read.csv("/Users/maximiliensock/ibriquet/logs.csv",
                 header = TRUE,
                 sep = ";",fileEncoding = "MACROMAN")
 
 
-df2 <- read_excel("C:/Users/Lisa/Documents/GitHub/ibriquet/surveydataece.xlsx")
+df2 <- read_excel("/Users/maximiliensock/ibriquet/surveydataece.xlsx")
 
 
-#CLEANING 
+################################################    CLEANING   ###########################################################
+names(df2)<-str_replace_all(names(df2), c(" " = "." , "," = "" ))
+df2 <- plyr::rename(df2,c("How.much.do.you.weigh?.(kg)"="Weight"))
+df2 <- plyr::rename(df2,c("What.is.your.height?.(cm)"="Height"))
+df2 <- plyr::rename(df2,c("How.many.cigarettes.do.you.smoke.per.day"="CigPerDay"))
+
+df2$BMI <- df2$Weight/(df2$Height/100)**2
+
+
+
 
 df1$Time <- strptime(df1$Time,format="%d/%m/%Y %H:%M")
 df1$Day <- weekdays(as.Date(df1$Time))
+
+
 tmp1 <- df1
 tmp2 <- tmp1[tmp1$Type=="Behaviour",c("User","Time")]
 tmp2 <- tmp2[!duplicated(tmp2[,"User"]),]
@@ -85,14 +97,110 @@ df1 <- df1[df1$User!="Wilfried Piaget",]
 
 
 
+
+
+############################################################################################################################
+
+#Extract age from the survey and merge it with the logs 
+temp1 <- df1[c("User","Type","WeekNumber")]
+df2 <- plyr::rename(df2,c("Name"="User"))
+temp2 <- df2[c("Age","User")]
+temp3 <- unique(df1[c("User")])
+temp2 <- merge(x = temp2, y = temp3, by = "User")
+
+# Create Age bins
+interv <- pretty(temp2$Age)
+temp <- cut(temp2$Age, breaks=interv, right = FALSE)
+
+temp2$Age <- temp
+
+# Give an age bin for each user
+freqByBin <- temp2
+
+# Extract the frequency per bins if there's any records
+freqByBin[freqByBin==0] <- NA
+freqByBin <- na.omit(freqByBin)
+freqByBin <- data.frame(table(freqByBin$Age))
+
+# Extract the number of records per age bin per type 
+df3 <- merge(x = temp1, y = temp2, by = "User")
+df5 <- df3[c("Type","Age")]
+df3 <- df3[c("User","Type","Age", "WeekNumber")]
+df4 <- aggregate(df3$WeekNumber, by = list(df3$Age,df3$User), max)
+df4 <- aggregate(df4$x,by = list(df4$Group.1), mean)
+df5 <- data.frame(table(df5))
+
+# Only consider "cheated" and "on time" records
+y <-df5[df5$Type=="Cheated","Freq"]+df5[df5$Type=="On time","Freq"]
+
+# Calculate frequency for those types in each age bin
+y <- y[y!=0]
+y <- y/df4$x
+freqByBin <- freqByBin[freqByBin$Freq!=0,c("Var1","Freq")]
+y <- y/freqByBin$Freq
+
+
+# Calculate the number of records for the behavior week as a comparison 
+behavior <- df5[df5$Type=="Behaviour","Freq"]
+behavior <- behavior[behavior!=0]
+
+# Calculate the progress rate
+y <- (behavior-y)/behavior*100
+y[is.infinite(y)]<-0
+names(y)=freqByBin$Var1
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+user="Rémi Dubost"
+
+skipped <- data.frame(table(df1[df1$Type=="Auto skipped",c("User")]))
+time <- data.frame(table(df1[df1$Type=="On time",c("User")]))
+test <- merge(x=time,y=skipped, by=c("Var1"))
+test <- test[test$Freq.y<6*test$Freq.x,]
+
+df <- df1[df1$User %in% test$Var1,]
+
+
+
+
+
+
+
+
+
+df1 <- df1[df$User==user,c("User","Day","WeekNumber","Type")]
+df <- df1[df1$Type %in% type,]
+
+
 tempLength <-  aggregate(df1$WeekNumber, by = list(df1$User), max)
 tempLength <- plyr::rename(tempLength,c("Group.1"="User"))
 df1 <- merge(x=df1,y=tempLength, by=c("User"))
 df1 <- df1[df1$x>4,]
 
+type=c("On time","Behaviour")
+week=3
 
-
-
+df1 <- df1[df1$User==user,c("User","Day","WeekNumber","Type")]
+df1 <- df1[df1$Type==type,c("User","Day","WeekNumber")]
+df1 <- df1[df1$WeekNumber==week,c("Day")]
+df1 <- data.frame(table(df1))
+df1 <- df1[order(df1$df1), ]
 
 x <- df[c("User","Type","Week")]
 x <- data.frame(table(x))
@@ -163,4 +271,38 @@ z <- 1:length(y)
 lo <- loess(y~z)
 plot(y, main="Average progress rate per week", xlab = "Week number",ylab = "Progress rate (%)")
 lines(predict(lo),type="l",col="red")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+observeEvent(input$uploadButton,{dfLogs <- read.csv("/Users/maximiliensock/ibriquet/logs.csv",
+                                                    header = TRUE,
+                                                    sep = ";",fileEncoding = "MACROMAN")
+
+
+dfSurvey <- read_excel("/Users/maximiliensock/ibriquet/surveydataece.xlsx")
+readCSV(dfLogs,dfSurvey)
+})
+
+
+
+
+
+
+
+
+checkboxGroupInput("type", "Type of record: ",
+                   c("Behaviour","Friend","On time","Skipped","Auto skipped","Cheated"),selected = c("Behaviour","Friend","On time","Skipped","Auto skipped","Cheated")),
 
