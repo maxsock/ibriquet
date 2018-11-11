@@ -21,6 +21,29 @@ engagement <- function(df){
   }))
 }
 
+userEngagement <- function(df,user){
+  # Extract the number of records for each week
+  df <- df[df$User==user,c("Type","WeekNumber")]
+  df <- data.frame(table(df))
+  behavior <- (sum(df[df$Type=="Behaviour","Freq"]))
+  df <- df[df$Type %in% c("Cheated","On time"),c("WeekNumber","Freq")]
+  df <- aggregate(df$Freq, by = list(df$WeekNumber), sum)
+  
+  # Replace first weeks value with the behaviour week value
+  df$x <- as.character(df$x)
+  df$x[df$x==0] <- behavior
+  
+  # Offset the values to compare the week n value with the value at week n-1
+  dfbis <- df[-c(1),]
+  df <- df[-nrow(df),]
+  y <- (as.numeric(dfbis$x)-as.numeric(df$x))/(as.numeric(dfbis$x))*100
+  z <- 1:length(y)
+  return (renderPlot({
+    qplot(z, y, geom=c("point","smooth"),main="Engagement variation compared to the previous week",xlab = "Week Number",ylab = "Engagement (%)")
+  }))
+  
+}
+
 progPerAgeBin <- function(df1, df2){
   
   #Extract age from the survey and merge it with the logs 
@@ -95,7 +118,7 @@ progRate <- function(df,user){
      z <- 1:length(y)
    
   return (renderPlot({
-    qplot(z,y, geom=c("point", "smooth"), group=1, main = "Average progress rate per week",  xlab = "Week number",ylab = "Progress rate (%)")
+    qplot(z,y, geom=c("point", "smooth"), group=1, main = "Average progress rate per week (compared to the behaviour week)",  xlab = "Week number",ylab = "Progress rate (%)")
     }))
     },
   error = function(e) {})

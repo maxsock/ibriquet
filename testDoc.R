@@ -101,53 +101,21 @@ df1 <- df1[df1$User!="Wilfried Piaget",]
 
 ############################################################################################################################
 
-#Extract age from the survey and merge it with the logs 
-temp1 <- df1[c("User","Type","WeekNumber")]
-df2 <- plyr::rename(df2,c("Name"="User"))
-temp2 <- df2[c("Age","User")]
-temp3 <- unique(df1[c("User")])
-temp2 <- merge(x = temp2, y = temp3, by = "User")
+user="Abel Sharpe"
 
-# Create Age bins
-interv <- pretty(temp2$Age)
-temp <- cut(temp2$Age, breaks=interv, right = FALSE)
+df <- df1[df1$User==user,c("Type","WeekNumber")]
+df <- data.frame(table(df))
+behavior <- (sum(df[df$Type=="Behaviour","Freq"]))
+df <- df[df$Type %in% c("Cheated","On time"),c("WeekNumber","Freq")]
+df <- aggregate(df$Freq, by = list(df$WeekNumber), sum)
+df$x <- as.character(df$x)
+df$x[df$x==0] <- behavior
+dfbis <- df[-c(1),]
+df <- df[-nrow(df),]
+y <- (as.numeric(dfbis$x)-as.numeric(df$x))/(as.numeric(dfbis$x))*100
+z <- 1:length(y)
 
-temp2$Age <- temp
-
-# Give an age bin for each user
-freqByBin <- temp2
-
-# Extract the frequency per bins if there's any records
-freqByBin[freqByBin==0] <- NA
-freqByBin <- na.omit(freqByBin)
-freqByBin <- data.frame(table(freqByBin$Age))
-
-# Extract the number of records per age bin per type 
-df3 <- merge(x = temp1, y = temp2, by = "User")
-df5 <- df3[c("Type","Age")]
-df3 <- df3[c("User","Type","Age", "WeekNumber")]
-df4 <- aggregate(df3$WeekNumber, by = list(df3$Age,df3$User), max)
-df4 <- aggregate(df4$x,by = list(df4$Group.1), mean)
-df5 <- data.frame(table(df5))
-
-# Only consider "cheated" and "on time" records
-y <-df5[df5$Type=="Cheated","Freq"]+df5[df5$Type=="On time","Freq"]
-
-# Calculate frequency for those types in each age bin
-y <- y[y!=0]
-y <- y/df4$x
-freqByBin <- freqByBin[freqByBin$Freq!=0,c("Var1","Freq")]
-y <- y/freqByBin$Freq
-
-
-# Calculate the number of records for the behavior week as a comparison 
-behavior <- df5[df5$Type=="Behaviour","Freq"]
-behavior <- behavior[behavior!=0]
-
-# Calculate the progress rate
-y <- (behavior-y)/behavior*100
-y[is.infinite(y)]<-0
-names(y)=freqByBin$Var1
+qplot(z, y, geom=c("point","smooth"),main="Engagement compared to the previous week",xlab = "Week Number",ylab = "Engagement (%)")
 
 
 
@@ -161,13 +129,6 @@ names(y)=freqByBin$Var1
 
 
 
-
-
-
-
-
-
-user="Rémi Dubost"
 
 skipped <- data.frame(table(df1[df1$Type=="Auto skipped",c("User")]))
 time <- data.frame(table(df1[df1$Type=="On time",c("User")]))

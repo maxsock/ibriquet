@@ -90,7 +90,13 @@ singleUserPage <- fluidPage(
         tabPanel("Weekly Stats", { 
          fluidRow(splitLayout(cellWidths = c("50%","50%"), plotOutput(outputId = "lastWeek"),plotOutput(outputId = "distPlot")))
           }),
-        tabPanel("Overall Stats", {plotOutput(outputId = "progRate")})
+        tabPanel("Overall Stats", {
+          fluidRow(
+            plotOutput(outputId = "progRate"),
+            plotOutput(outputId = "userEngagement")
+            )
+          })
+          
        
      
 
@@ -99,7 +105,7 @@ singleUserPage <- fluidPage(
   )
 
   
-)
+))
 allUsersPage <- fluidPage(
   titlePanel("All Users"),
   plotOutput(outputId = "dailyConsumption"),
@@ -146,6 +152,7 @@ server <- function(input, output, session) {
         output$progRate <- progRate(dfLogs,input$name)
         output$infos <- getInfos(dfSurvey,input$name)
         output$lastWeek <- lastWeekCons(dfLogs,input$name,input$weekNumber)
+        output$userEngagement<- userEngagement(dfLogs,input$name)
         
       }
         
