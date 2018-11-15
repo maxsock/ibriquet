@@ -96,10 +96,6 @@ singleUserPage <- fluidPage(
             plotOutput(outputId = "userEngagement")
             )
           })
-          
-       
-     
-
     )
     
   )
@@ -108,9 +104,38 @@ singleUserPage <- fluidPage(
 ))
 allUsersPage <- fluidPage(
   titlePanel("All Users"),
-  plotOutput(outputId = "dailyConsumption"),
-  plotOutput(outputId = "engagement"),
-  plotOutput(outputId = "progPerAgeBin")
+  sidebarLayout(
+    
+    # Sidebar panel for inputs ----
+    sidebarPanel(
+      
+      sliderInput("weekNumber2", "Week Number:",
+                  min = 0, max = 21,
+                  value = 0),
+      tags$hr(),
+      checkboxGroupInput("type", "Type of record: ",
+                         c("Behaviour","Friend","On time","Skipped","Auto skipped","Cheated"),selected = c("Behaviour","Friend","On time","Skipped","Auto skipped","Cheated"))
+      
+      
+      
+    ),
+    
+    # Main panel for displaying outputs ----
+    mainPanel( 
+      tabsetPanel(
+        tabPanel("Overall Stats", { 
+          fluidRow(plotOutput(outputId = "dailyConsumption"),
+                   plotOutput(outputId = "engagement"),
+                   plotOutput(outputId = "progPerAgeBin"))
+        }),
+        tabPanel("Weekly Stats", {
+          fluidRow(
+            plotOutput(outputId = "weekTypes")
+          )
+        })
+      )
+    )
+  )
 )
 
 ui <- dashboardPage(
@@ -157,12 +182,15 @@ server <- function(input, output, session) {
       }
         
     })
-    observeEvent({input$type
-      input$weekNumber},{
+    observeEvent(input$weekNumber,{
       if(input$name!="Select User"){
       output$distPlot <- plotFunction(dfLogs,input$name,input$weekNumber)
       output$lastWeek <- lastWeekCons(dfLogs,input$name,input$weekNumber)
       }
+    })
+    observeEvent({input$type
+      input$weekNumber2},{
+      output$weekTypes <- weeklyTypes(dfLogs,input$weekNumber2,input$type)
     })
     
     # Fill the select input with the filtered names of users
@@ -170,6 +198,8 @@ server <- function(input, output, session) {
                       choices = sort(unique(dfLogs$User)),
                       selected = head(sort(unique(dfLogs$User)), 1)
     )
+    
+    
     
     return(dfLogs)
   }

@@ -33,8 +33,8 @@ cleanLogs <- function(df){
   df <- df[df$TotalWeek>4,]
   
   # Delete users where there's 6 times more "auto skipped" than "on time" (not using the lighter properly)
-  skipped <- data.frame(table(df1[df1$Type=="Auto skipped",c("User")]))
-  time <- data.frame(table(df1[df1$Type=="On time",c("User")]))
+  skipped <- data.frame(table(df[df$Type=="Auto skipped",c("User")]))
+  time <- data.frame(table(df[df$Type=="On time",c("User")]))
   test <- merge(x=time,y=skipped, by=c("Var1"))
   test <- test[test$Freq.y<6*test$Freq.x,]
   df <- df[df$User %in% test$Var1,]

@@ -169,3 +169,17 @@ dailyCons <- function(df){
   df2 <- df2[order(df2$Day), ]
   return (renderPlot({qplot(Day, Freq, data = df2, geom=c("boxplot"),main="Mean and Std of Cigarette Consumption per weekday")}))
 }
+
+weeklyTypes <- function(df,week,type){
+  df3 <- df[df$WeekNumber==week,c("User","Time","Type")]
+  df3 <- df3[df3$Type %in% type,c("User","Time","Type")]
+  df3$Hour <- strftime(df3$Time,format="%H")
+  interv <- c(0,6,10,14,18,22,24)
+  temp <- cut(as.numeric(df3$Hour), breaks=interv, right = FALSE)
+  df3$Hour <- temp
+  
+  y <- data.frame(table(df3[c("Hour","Type")]))
+  plot = ggplot(data = y, aes( x = Hour, y = Freq, fill = Type ) )+geom_bar( stat = 'identity',position = 'dodge'  )+ggtitle("Mode usage per week/per time slot")
+  
+  return(renderPlot(plot))
+}

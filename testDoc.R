@@ -117,8 +117,11 @@ z <- 1:length(y)
 
 qplot(z, y, geom=c("point","smooth"),main="Engagement compared to the previous week",xlab = "Week Number",ylab = "Engagement (%)")
 
+df$User <- df2$Name
 
+df <- df2[ , grepl( "health.condition" , names( df2 ) ) ]
 
+df[is.na(df$health.condition.None)==0,"User"]
 
 
 
@@ -141,8 +144,23 @@ df <- df1[df1$User %in% test$Var1,]
 
 
 
+temp2$Age <- temp
 
+# Give an age bin for each user
+freqByBin <- temp2
 
+# Extract the frequency per bins if there's any records
+freqByBin[freqByBin==0] <- NA
+freqByBin <- na.omit(freqByBin)
+freqByBin <- data.frame(table(freqByBin$Age))
+
+# Extract the number of records per age bin per type 
+df3 <- merge(x = temp1, y = temp2, by = "User")
+df5 <- df3[c("Type","Age")]
+df3 <- df3[c("User","Type","Age", "WeekNumber")]
+df4 <- aggregate(df3$WeekNumber, by = list(df3$Age,df3$User), max)
+df4 <- aggregate(df4$x,by = list(df4$Group.1), mean)
+df5 <- data.frame(table(df5))
 
 
 df1 <- df1[df$User==user,c("User","Day","WeekNumber","Type")]
@@ -263,7 +281,4 @@ readCSV(dfLogs,dfSurvey)
 
 
 
-
-checkboxGroupInput("type", "Type of record: ",
-                   c("Behaviour","Friend","On time","Skipped","Auto skipped","Cheated"),selected = c("Behaviour","Friend","On time","Skipped","Auto skipped","Cheated")),
 
