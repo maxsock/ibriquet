@@ -30,7 +30,6 @@ dfLogs <- cleanLogs(df1);
 dfSurvey <- cleanSurvey(df2)
 
 
-
 user="Abel Sharpe"
 ########################## AGE CATEGORY ###########################################
 
@@ -43,19 +42,23 @@ setDT(temp2)
 temp2[Age >0 & Age <30, Category := "Young"]
 temp2[Age >=30 & Age <50, Category := "Middle"]
 temp2[Age >=50, Category := "Old"]
-
+temp2$Category
 #returns dataframe with age and category
 
 ########################## CIGARETTES SAVED ################################################
 
-df4 <- dfLogs[dfLogs$User==user,c("User","Type","WeekNumber")]
+df4 <- dfLogs[dfLogs$User==user & dfLogs$Type %in% c("Behaviour","Cheated","On time"),c("WeekNumber","Type")]
 df4 <- table(df4)
 df4 <- data.frame(df4)  
-df4$Saved <- df4[df4$Type=="Behaviour","Freq"] - df4[df4$Type=="Cheated","Freq"] - df4[df4$Type=="On time","Freq"]  
-df4 <- aggregate(df4$Saved,by = list(df4$User), sum)
-df4 <- plyr::rename(df4,c("Group.1"="User"))
-df4 <- df4[df4$User==user,"x"]
+df4 <- df4[df4$Freq!=0,]
+ref <- df4[df4$Type=="Behaviour","Freq"]
+df4 <- df4[df4$WeekNumber!=0,]
 
+saved <- df4[df4$Type=="Behaviour","Freq"] - df4[df4$Type=="Cheated","Freq"] - df4[df4$Type=="On time","Freq"]  
+df4 <- aggregate(df4$Freq,by = list(df4$WeekNumber), sum)
+df4 <- plyr::rename(df4,c("Group.1"="WeekNumber"))
+
+saved <- sum(df4$x)
 #returns number of saved cigarettes
 
 
@@ -76,21 +79,30 @@ y <- y[!is.infinite(y)]
 # Calculate the progress for week ≥ 3
 cons <- df5[df5$Type=="Cheated","Freq"]+df5[df5$Type=="On time","Freq"]
 cons[1] <- df5[df5$Type=="Behaviour","Freq"][1]
+avg <- c(0)
 
 for (i in 4:length(cons)){
+  if(!isEngaged(i,user)){
+    for(j in (i-1):1){
+      if(isEngaged(j,user)){
+        cons[i] <- cons[j]
+        break;
+      }
+    }
+  }
   averageCons <- (cons[i-1]+cons[i-2]+cons[i-3])/3
-  cons[i]= (averageCons - cons[i])/averageCons
+  avg[i]= (averageCons - cons[i])/averageCons
 }
 
 # Concatenate the progress in a unique array
-prog <- c(0,y[2:3],cons[4:length(cons)])
+prog <- c(0,y[2:3],avg[4:length(cons)])
 df5 <- unique(df5[c("WeekNumber")])
 df5$Progress <- prog
 
 # return progress rate per week
 
 ###### Average progress ######
-avProg <- mean(prog[2:length(cons)])
+avProg <- mean(df5$Progress[2:length(df5$Progress)])
 
 ###### Progress Category #######
 if(avProg <= 0.2){
@@ -106,8 +118,8 @@ if(avProg <= 0.2){
 
 # ATTENTION utilisation de prog de la fonction précédente 
 rate <- c()
-rate[1] <- 1
-rate[2] <- 1
+rate[1] <- 0
+rate[2] <- 0
 for(i in 3:length(prog)){
   if(prog[i-1]==0){
     rate[i] <-  (prog[i] - prog[i-2])/prog[i-2]
@@ -236,4 +248,37 @@ df15 <- df15[order(df15$Group.1), ]
 ggplot(data = df15, aes( x = Group.1, y = x ) )+geom_bar( stat = 'identity',position = 'dodge'  )+ggtitle("Cigarettes per weekday")
 
 
+########################## ENGAGEMENT PER DAY #################################
+
+df16 <- dfLogs[dfLogs$User==user & dfLogs$WeekNumber!=0,c("Dateday","Type")]
+df16 <- data.frame(table(df16))
+date <- unique(df16$Dateday)
+engagementDay <- 1 - df16[df16$Type=="Auto skipped","Freq"]/(df16[df16$Type=="Auto skipped","Freq"]+ df16[df16$Type=="Skipped","Freq"] + df16[df16$Type=="On time","Freq"] + df16[df16$Type=="Snoozed","Freq"] )
+engDay <- cbind.data.frame(date,engagementDay)
+
+########################## ENGAGEMENT PER WEEK #################################
+
+df17 <- dfLogs[dfLogs$User==user & dfLogs$WeekNumber!=0,c("WeekNumber","Type")]
+df17 <- data.frame(table(df17))
+week <- unique(df17$WeekNumber)
+engagementWeek <- 1 - df17[df17$Type=="Auto skipped","Freq"]/(df17[df17$Type=="Auto skipped","Freq"]+ df17[df17$Type=="Skipped","Freq"] + df17[df17$Type=="On time","Freq"] + df17[df17$Type=="Snoozed","Freq"] )
+engWeek <- cbind.data.frame(week,engagementWeek)
+isEngaged(1,user)
+isEngaged <- function(week,user){
+  week <- week - 1
+  if(week==0) return(FALSE)
+  df17 <- dfLogs[dfLogs$User==user & dfLogs$WeekNumber==week,c("Type")]
+  df17 <- data.frame(table(df17))
+  engagement <- 1 - df17[df17$df17=="Auto skipped","Freq"]/(df17[df17$df17=="Auto skipped","Freq"]+ df17[df17$df17=="Skipped","Freq"] + df17[df17$df17=="On time","Freq"] + df17[df17$df17=="Snoozed","Freq"] )
+  if(engagement > 0.4){
+    return (TRUE)
+  } else return(FALSE)
+}
+
+########################## MODE USAGE OVER ALL PERIOD #################################
+type=c("Cheated","On time")
+df18 <- dfLogs[dfLogs$Type %in% type & dfLogs$User==user,c("Dateday","Type")]
+df18 <- data.frame(table(df18))
+df18 <- df18[df18$Freq!=0,]
+ggplot(data = df18, aes( x = Dateday, y = Freq, fill = Type ) )+geom_bar( stat = 'identity',position = 'dodge'  )+ggtitle("Mode usage over all period")
 

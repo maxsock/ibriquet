@@ -3,6 +3,12 @@ cleanLogs <- function(df){
   # Transform the date string to the right format
   df$Time <- strptime(df$Time,format="%d/%m/%Y %H:%M")
   
+  df$Dateday  <- format(df$Time,'%d/%m/%Y')
+  
+  # Delete all records of behaviour after week 0
+  df <- df[!(df$WeekNumber==1 & df$Type=="Behaviour"),]
+  
+  
   # Extract days and weeks
   df$Day <- weekdays(as.Date(df$Time))
   df$Week <- week(df$Time)
