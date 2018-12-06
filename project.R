@@ -20,7 +20,7 @@ options(stringsAsFactors = FALSE)
 sidebar <- dashboardSidebar(
   sidebarMenu(
     menuItem("Upload File", icon = icon("upload"), tabName = "upload"),
-    menuItem("All Users", tabName = "allUsers", icon = icon("users")),
+   # menuItem("All Users", tabName = "allUsers", icon = icon("users")),
     menuItem("Single User", icon = icon("user"), tabName = "singleUser")
   )
 )
@@ -65,89 +65,31 @@ uploadPage <- fluidPage(
     
   )
 )
-
-
 singleUserPage <- fluidPage(
   titlePanel("Single User"),
-  sidebarLayout(
-    
-    # Sidebar panel for inputs ----
-    sidebarPanel(
-      
-      selectInput("name",
-                  "User",
-                  c("Select User")),
-      htmlOutput(outputId = "infos"),
-      tags$hr(),
-      sliderInput("weekNumber", "Week Number:",
-                  min = 0, max = 4,
-                  value = 0)
-      
-    ),
-    
-    # Main panel for displaying outputs ----
-    mainPanel( 
-      tabsetPanel(
-        tabPanel("Weekly Stats", { 
-         fluidRow(splitLayout(cellWidths = c("50%","50%"), plotOutput(outputId = "lastWeek"),plotOutput(outputId = "distPlot")))
-          }),
-        tabPanel("Overall Stats", {
-          fluidRow(
-            plotOutput(outputId = "progRate"),
-            plotOutput(outputId = "userEngagement")
-            )
-          })
-    )
-    
+  panel <- fluidRow( column(4,selectInput("name",
+                                 "User",
+                                 c("Select User"))),
+                     column(8,sliderInput("weekNumber", "Week Number:",
+                                 min = 0, max = 4,
+                                 value = 0))),
+  info <- fluidRow(valueBoxOutput("category"),
+                   valueBoxOutput("savings"),
+                   valueBoxOutput("avProg"))
+                   
+  
   )
 
-  
-))
-allUsersPage <- fluidPage(
-  titlePanel("All Users"),
-  sidebarLayout(
-    
-    # Sidebar panel for inputs ----
-    sidebarPanel(
-      
-      sliderInput("weekNumber2", "Week Number:",
-                  min = 0, max = 21,
-                  value = 0),
-      tags$hr(),
-      checkboxGroupInput("type", "Type of record: ",
-                         c("Behaviour","Friend","On time","Skipped","Auto skipped","Cheated"),selected = c("Behaviour","Friend","On time","Skipped","Auto skipped","Cheated"))
-      
-      
-      
-    ),
-    
-    # Main panel for displaying outputs ----
-    mainPanel( 
-      tabsetPanel(
-        tabPanel("Overall Stats", { 
-          fluidRow(plotOutput(outputId = "dailyConsumption"),
-                   plotOutput(outputId = "engagement"),
-                   plotOutput(outputId = "progPerAgeBin"))
-        }),
-        tabPanel("Weekly Stats", {
-          fluidRow(
-            plotOutput(outputId = "weekTypes")
-          )
-        })
-      )
-    )
-  )
-)
+
+
+
 
 ui <- dashboardPage(
   dashboardHeader(title = "iBriquet dashboard"),
   sidebar,
   dashboardBody(tabItems(
-    tabItem(tabName = "upload",
-            uploadPage
-    ),
-    
-    tabItem(tabName = "allUsers",allUsersPage),
+    tabItem(tabName = "upload",uploadPage),
+    #tabItem(tabName = "allUsers",allUsersPage),
     tabItem(tabName = "singleUser",singleUserPage)
   ))
 )
@@ -164,22 +106,13 @@ server <- function(input, output, session) {
     dfLogs <- cleanLogs(dfLogs);
     dfSurvey <- cleanSurvey(dfSurvey);
     
-    # Graphs for all the users
-    output$dailyConsumption <- dailyCons(dfLogs);
-    output$engagement <- engagement(dfLogs);
-    output$progPerAgeBin <- progPerAgeBin(dfLogs, dfSurvey);
-    
+  
     # Graph per user
     observeEvent(input$name,{
       if(input$name!="Select User"){
-        values$maxWeek <- getmaxWeek(dfLogs,input$name)
-        updateSliderInput(session,"weekNumber",max=values$maxWeek)
-        output$distPlot <- plotFunction(dfLogs,input$name,input$weekNumber)
-        output$progRate <- progRate(dfLogs,input$name)
-        output$infos <- getInfos(dfSurvey,input$name)
-        output$lastWeek <- lastWeekCons(dfLogs,input$name,input$weekNumber)
-        output$userEngagement<- userEngagement(dfLogs,input$name)
-        
+        output$category <- ageCat(dfLogs,dfSurvey,input$name)
+        output$savings <- cigSaved(dfLogs,input$name)
+        output$avProg <- averageProgress(dfLogs,input$name)
       }
         
     })

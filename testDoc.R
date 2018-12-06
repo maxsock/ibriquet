@@ -30,7 +30,7 @@ dfLogs <- cleanLogs(df1);
 dfSurvey <- cleanSurvey(df2)
 
 
-user="Abel Sharpe"
+user="Hervé Dupuis"
 ########################## AGE CATEGORY ###########################################
 
 temp1 <- dfLogs[dfLogs$User==user,c("User")]
@@ -43,6 +43,7 @@ temp2[Age >0 & Age <30, Category := "Young"]
 temp2[Age >=30 & Age <50, Category := "Middle"]
 temp2[Age >=50, Category := "Old"]
 temp2$Category
+nrow(temp2)
 #returns dataframe with age and category
 
 ########################## CIGARETTES SAVED ################################################
@@ -63,6 +64,7 @@ saved <- sum(df4$x)
 
 
 ########################## OVERALL PROGRESS ################################################
+user = "Étienne Toussaint"
 
 # Extract frequences per type per week
 df5 <- dfLogs[dfLogs$User==user,c("Type","WeekNumber")]
@@ -183,10 +185,12 @@ df10$Hour <- strftime(df10$Time,format="%H")
 interv <- c(0,6,10,14,18,22,24)
 temp <- cut(as.numeric(df10$Hour), breaks=interv, right = FALSE)
 df10$Hour <- temp
-df10 <- df10[df10$Hour==as.numeric(slot),c("Type","Day","WeekNumber","Freq")]
+df10 <- df10[df10$Hour==slot,c("Hour","WeekNumber")]
 df10 <- table(df10)
 df10 <- data.frame(df10) 
-df10 <- df10[df10$Freq!=0,c("Hour","Freq")]
+df10[df10$Freq!=0,]
+df10 <- aggregate(list(Freq=df10$Freq),by = list(Hour=df10$Hour),mean)
+sum(df10$Freq)
 
 
 ########################## CIGARETTE CONSUMPTION PER WEEKDAY #################################
@@ -213,7 +217,6 @@ df12$Day <- factor(df12$Day, levels = c("Monday","Tuesday", "Wednesday", "Thursd
 df12 <- df12[order(df12$Day), ]
 
 qplot(Day, Freq, data = df12, geom=c("boxplot"),main="Mean and Std of Cigarette Consumption per weekday")
-
 
 ########################## CIGARETTES PER WEEKDAY PER TIME SLOTS #################################
 
@@ -263,14 +266,19 @@ df17 <- data.frame(table(df17))
 week <- unique(df17$WeekNumber)
 engagementWeek <- 1 - df17[df17$Type=="Auto skipped","Freq"]/(df17[df17$Type=="Auto skipped","Freq"]+ df17[df17$Type=="Skipped","Freq"] + df17[df17$Type=="On time","Freq"] + df17[df17$Type=="Snoozed","Freq"] )
 engWeek <- cbind.data.frame(week,engagementWeek)
-isEngaged(1,user)
+#qplot(eng$date,eng$engagement, geom=c("point", "smooth"), group=1, main = "Engagement per week", xlab = "Week Number", ylab = "Engagement rate (%)")+ scale_y_continuous(labels=scales::percent)
+user = "Étienne Toussaint"
+isEngaged(18,user)
 isEngaged <- function(week,user){
   week <- week - 1
   if(week==0) return(FALSE)
   df17 <- dfLogs[dfLogs$User==user & dfLogs$WeekNumber==week,c("Type")]
   df17 <- data.frame(table(df17))
-  engagement <- 1 - df17[df17$df17=="Auto skipped","Freq"]/(df17[df17$df17=="Auto skipped","Freq"]+ df17[df17$df17=="Skipped","Freq"] + df17[df17$df17=="On time","Freq"] + df17[df17$df17=="Snoozed","Freq"] )
-  if(engagement > 0.4){
+  if(week==16) print(df17)
+  engagement <- 1 - max(df17[df17$df17=="Auto skipped","Freq"],0)/(max(df17[df17$df17=="Auto skipped","Freq"],0)+ max(df17[df17$df17=="Skipped","Freq"],0)+ max(df17[df17$df17=="On time","Freq"],0) + max(df17[df17$df17=="Snoozed","Freq"],0)  )
+  print(engagement)
+  if(is.na(engagement)) return(FALSEsa)
+   if(engagement > 0.4){
     return (TRUE)
   } else return(FALSE)
 }

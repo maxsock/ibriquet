@@ -7,19 +7,7 @@ plotFunction <- function(df,user,week){
   }) )
 }
 
-engagement <- function(df){
-  x <- df[c("User","Week")]
-  x <- data.frame(table(x))
-  y <-x[x$Freq>0,c("Freq","Week")]
-  y <- table(y$Week)
-  y <- as.numeric(y)
-  y <- y/(length(unique(df$User)))*100
-  y <- y[!is.infinite(y)]
-  z <- 1:length(y)
-  return (renderPlot({
-    qplot(z,y, geom=c("point", "smooth"), group=1, main = "Engagement",  xlab = "Week number",ylab = "Engagement (%)")
-  }))
-}
+
 
 userEngagement <- function(df,user){
   # Extract the number of records for each week

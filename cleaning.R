@@ -2,13 +2,9 @@ cleanLogs <- function(df){
   
   # Transform the date string to the right format
   df$Time <- strptime(df$Time,format="%d/%m/%Y %H:%M")
-  
+
   df$Dateday  <- format(df$Time,'%d/%m/%Y')
-  
-  # Delete all records of behaviour after week 0
-  df <- df[!(df$WeekNumber==1 & df$Type=="Behaviour"),]
-  
-  
+ 
   # Extract days and weeks
   df$Day <- weekdays(as.Date(df$Time))
   df$Week <- week(df$Time)
@@ -32,11 +28,7 @@ cleanLogs <- function(df){
   df <- df[df$User!="Wilfried Piaget",]
   
   # Delete users who didn't use the lighter for more than 4 weeks
-  tempLength <-  aggregate(df$WeekNumber, by = list(df$User), max)
-  tempLength <- plyr::rename(tempLength,c("Group.1"="User"))
-  df <- merge(x=df,y=tempLength, by=c("User"))
-  df <- plyr::rename(df,c("x"="TotalWeek"))
-  df <- df[df$TotalWeek>4,]
+ 
   
   # Delete users where there's 6 times more "auto skipped" than "on time" (not using the lighter properly)
   skipped <- data.frame(table(df[df$Type=="Auto skipped",c("User")]))
@@ -44,6 +36,10 @@ cleanLogs <- function(df){
   test <- merge(x=time,y=skipped, by=c("Var1"))
   test <- test[test$Freq.y<6*test$Freq.x,]
   df <- df[df$User %in% test$Var1,]
+  
+  # Delete all records of behaviour after week 0
+  df <- df[!(df$WeekNumber==1 & df$Type=="Behaviour"),]
+  df <- df[df$WeekNumber!=-1,]
   
   
 
