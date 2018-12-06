@@ -1,61 +1,20 @@
 library(shiny)
+library(shinydashboard)
+library(readxl)
+library(shinyjs)
+library(lubridate)
 library(data.table)
 library(dplyr)
 library(plyr)
-library(lubridate)
 library(bda)
-library(readxl)
+library(tools)
+library(stringr)
+library(ggplot2)
 #setwd("C:/Users/Lisa/Documents/GitHub/ibriquet")
 setwd("/Users/maximiliensock/ibriquet")
 
 source("cleaning.R")
 
-
-write.csv(df2, file = "test.csv")
-df1$Time <- strptime(df1$Time,format="%d/%m/%Y %H:%M")
-#df1$Time <- substring(df1$Time,0,7)
-df1$Day <- weekdays(as.Date(df1$Time))
-df1$Month <- substring(df1$Time,0,7)
-y <- table(df1[df1$User=="Rémi Dubost","Day"])
-x <- table(df1[df1$User!="Rémi Dubost","Day"])
-z <- df1[c("User","Day")]
-zz <- data.frame(table(z))
-#zzz <- aggregate(Freq ~ Day,zz,mean)
-zz$Day <- factor(zz$Day, levels = c("Monday","Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))
-zz <- zz[order(zz$Day), ]
-#setcolorder(zz,c("Monday","Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))
-boxplot(Freq ~ Day,zz)
-df3 <- data.frame(zz) 
-zz <- df2[c("Start Date","Name")]
-zz$Week <- week(zz$`Start Date`)
-zz <- zz[zz$Name=="Rémi Dubost","Week"]
-df1$Week <- week(df1$Time)
-
-user="Étienne Toussaint"
-x <- df1[c("User","Week")]
-x <- data.frame(table(x))
-y <-x[x$Freq>0,c("Freq","Week")]
-y <- table(y$Week)
-y <- as.numeric(y)
-y <- y/36*100
-y <- y[!is.infinite(y)]
-z <- 1:length(y)
-lo <- loess(y~z)
-plot(y, main="Engagement", xlab = "Week number",ylab = "Engagement (%)")
-lines(predict(lo),type="l",col="red")
-
-
-
-x <- df[c("User","Type","Week")]
-x <- data.frame(table(x))
-x <- x[x$User==user,c("User","Type","Week","Freq")]
-y <-x[x$Type=="Cheated","Freq"]+x[x$Type=="On time","Freq"]
-
-
-y <- (mean(na.exclude(x[x$Type=="Behaviour","Freq"])))/y*100
-y <- y[!is.infinite(y)]
-z <- 1:length(y)
-lo <- loess(y~z)
 
 ################################################ LOADING DATA  #####################################################################
 df1 <- read.csv("/Users/maximiliensock/ibriquet/logs.csv",
@@ -67,218 +26,214 @@ df2 <- read_excel("/Users/maximiliensock/ibriquet/surveydataece.xlsx")
 
 
 ################################################    CLEANING   ###########################################################
-names(df2)<-str_replace_all(names(df2), c(" " = "." , "," = "" ))
-df2 <- plyr::rename(df2,c("How.much.do.you.weigh?.(kg)"="Weight"))
-df2 <- plyr::rename(df2,c("What.is.your.height?.(cm)"="Height"))
-df2 <- plyr::rename(df2,c("How.many.cigarettes.do.you.smoke.per.day"="CigPerDay"))
-
-df2$BMI <- df2$Weight/(df2$Height/100)**2
+dfLogs <- cleanLogs(df1);
+dfSurvey <- cleanSurvey(df2)
 
 
-
-
-df1$Time <- strptime(df1$Time,format="%d/%m/%Y %H:%M")
-df1$Day <- weekdays(as.Date(df1$Time))
-
-
-tmp1 <- df1
-tmp2 <- tmp1[tmp1$Type=="Behaviour",c("User","Time")]
-tmp2 <- tmp2[!duplicated(tmp2[,"User"]),]
-tmp1 <- merge(x=tmp1, y=tmp2, by="User", all = TRUE)
-tmp1$WeekNumber <- time_length(interval(start = tmp1$Time.y, end = tmp1$Time.x), unit = "weeks") 
-tmp1$WeekNumber <- floor(tmp1$WeekNumber)
-tmp1 <- plyr::rename(tmp1,c("Time.x"="Time"))
-tmp1 <- select(tmp1,"User","Time","WeekNumber")
-df1 <- merge(x=df1,y=tmp1, by=c("User","Time"))
-df1 <- df1[df1$User!="William Beauregard",]
-df1 <- df1[df1$User!="Marc Gaumont",]
-df1 <- df1[df1$User!="Joseph Toussaint",]
-df1 <- df1[df1$User!="Wilfried Piaget",]
-
-
-
-
-
-############################################################################################################################
 
 user="Abel Sharpe"
+########################## AGE CATEGORY ###########################################
 
-df <- df1[df1$User==user,c("Type","WeekNumber")]
-df <- data.frame(table(df))
-behavior <- (sum(df[df$Type=="Behaviour","Freq"]))
-df <- df[df$Type %in% c("Cheated","On time"),c("WeekNumber","Freq")]
-df <- aggregate(df$Freq, by = list(df$WeekNumber), sum)
-df$x <- as.character(df$x)
-df$x[df$x==0] <- behavior
-dfbis <- df[-c(1),]
-df <- df[-nrow(df),]
-y <- (as.numeric(dfbis$x)-as.numeric(df$x))/(as.numeric(dfbis$x))*100
-z <- 1:length(y)
-
-qplot(z, y, geom=c("point","smooth"),main="Engagement compared to the previous week",xlab = "Week Number",ylab = "Engagement (%)")
-
-df$User <- df2$Name
-
-df <- df2[ , grepl( "health.condition" , names( df2 ) ) ]
-
-df[is.na(df$health.condition.None)==0,"User"]
-
-
-
-
-
-
-
-
-
-
-
-skipped <- data.frame(table(df1[df1$Type=="Auto skipped",c("User")]))
-time <- data.frame(table(df1[df1$Type=="On time",c("User")]))
-test <- merge(x=time,y=skipped, by=c("Var1"))
-test <- test[test$Freq.y<6*test$Freq.x,]
-
-df <- df1[df1$User %in% test$Var1,]
-
-
-
-
-
-temp2$Age <- temp
-
-# Give an age bin for each user
-freqByBin <- temp2
-
-# Extract the frequency per bins if there's any records
-freqByBin[freqByBin==0] <- NA
-freqByBin <- na.omit(freqByBin)
-freqByBin <- data.frame(table(freqByBin$Age))
-
-# Extract the number of records per age bin per type 
-df3 <- merge(x = temp1, y = temp2, by = "User")
-df5 <- df3[c("Type","Age")]
-df3 <- df3[c("User","Type","Age", "WeekNumber")]
-df4 <- aggregate(df3$WeekNumber, by = list(df3$Age,df3$User), max)
-df4 <- aggregate(df4$x,by = list(df4$Group.1), mean)
-df5 <- data.frame(table(df5))
-
-
-df1 <- df1[df$User==user,c("User","Day","WeekNumber","Type")]
-df <- df1[df1$Type %in% type,]
-
-
-tempLength <-  aggregate(df1$WeekNumber, by = list(df1$User), max)
-tempLength <- plyr::rename(tempLength,c("Group.1"="User"))
-df1 <- merge(x=df1,y=tempLength, by=c("User"))
-df1 <- df1[df1$x>4,]
-
-type=c("On time","Behaviour")
-week=3
-
-df1 <- df1[df1$User==user,c("User","Day","WeekNumber","Type")]
-df1 <- df1[df1$Type==type,c("User","Day","WeekNumber")]
-df1 <- df1[df1$WeekNumber==week,c("Day")]
-df1 <- data.frame(table(df1))
-df1 <- df1[order(df1$df1), ]
-
-x <- df[c("User","Type","Week")]
-x <- data.frame(table(x))
-x <- x[x$User==user,c("User","Type","Week","Freq")]
-y <-x[x$Type=="Cheated","Freq"]+x[x$Type=="On time","Freq"]
-
-behavior <- (mean(na.exclude(x[x$Type=="Behaviour","Freq"])))
-y <- (behavior-y)/behavior*100
-y <- y[!is.infinite(y)]
-z <- 1:length(y)
-lo <- loess(y~z)
-
-
-
-
-
-#PROGRESS PER Health Condition
-temp1 <- df1[c("User","Type","WeekNumber")]
-df2 <- plyr::rename(df2,c("Name"="User", "How would you describe your general health condition? (select answer that applies the best)" = "HealthCond"))
-temp2 <- df2[c("HealthCond","User")]
-temp3 <- unique(df1[c("User")])
+temp1 <- dfLogs[dfLogs$User==user,c("User")]
+df3 <- plyr::rename(dfSurvey,c("Name"="User"))
+temp2 <- df3[df3$User==user,c("Age","User")]
+temp3 <- unique(dfLogs[c("User")])
 temp2 <- merge(x = temp2, y = temp3, by = "User")
+setDT(temp2)
+temp2[Age >0 & Age <30, Category := "Young"]
+temp2[Age >=30 & Age <50, Category := "Middle"]
+temp2[Age >=50, Category := "Old"]
 
-interv <- pretty(temp2$HealthCond)
-temp <- cut(temp2$Age, breaks=interv, right = FALSE)
+#returns dataframe with age and category
 
-temp2$Age <- temp
-freqByBin <- temp2
+########################## CIGARETTES SAVED ################################################
 
-freqByBin[freqByBin==0] <- NA
-freqByBin <- na.omit(freqByBin)
-freqByBin <- data.frame(table(freqByBin$Age))
-df3 <- merge(x = temp1, y = temp2, by = "User")
-df5 <- df3[c("Type","Age")]
-df3 <- df3[c("User","Type","Age", "WeekNumber")]
-df4 <- aggregate(df3$WeekNumber, by = list(df3$Age,df3$User), max)
-df4 <- aggregate(df4$x,by = list(df4$Group.1), mean)
-df5 <- data.frame(table(df5))
+df4 <- dfLogs[dfLogs$User==user,c("User","Type","WeekNumber")]
+df4 <- table(df4)
+df4 <- data.frame(df4)  
+df4$Saved <- df4[df4$Type=="Behaviour","Freq"] - df4[df4$Type=="Cheated","Freq"] - df4[df4$Type=="On time","Freq"]  
+df4 <- aggregate(df4$Saved,by = list(df4$User), sum)
+df4 <- plyr::rename(df4,c("Group.1"="User"))
+df4 <- df4[df4$User==user,"x"]
 
+#returns number of saved cigarettes
+
+
+########################## OVERALL PROGRESS ################################################
+
+# Extract frequences per type per week
+df5 <- dfLogs[dfLogs$User==user,c("Type","WeekNumber")]
+df5 <- table(df5)
+df5 <- data.frame(df5)  
+
+# Calculate the progress for week 1 and 2
 y <-df5[df5$Type=="Cheated","Freq"]+df5[df5$Type=="On time","Freq"]
 y <- y[y!=0]
-y <- y/df4$x
-freqByBin <- freqByBin[freqByBin$Freq!=0,c("Var1","Freq")]
-#y <- y/36)
-y <- y/freqByBin$Freq
-
-behavior <- df5[df5$Type=="Behaviour","Freq"]
-behavior <- behavior[behavior!=0]
-y <- (behavior-y)/behavior*100
-y[is.infinite(y)]<-0
-names(y)=freqByBin$Var1
-barplot(y,main="Progress per age bin compared to the behavior week",xlab = "Age bin",ylab = "Progress rate (%)")
-
-
-
-# PROGRESSION PER USER
-user="Étienne Toussaint"
-x <- df1[c("User","Type","WeekNumber")]
-x <- data.frame(table(x))
-x <- x[x$User==user,c("User","Type","WeekNumber","Freq")]
-y <-x[x$Type=="Cheated","Freq"]+x[x$Type=="On time","Freq"]
-y <- y[y!=0]
-behavior <- (sum(x[x$Type=="Behaviour","Freq"]))
-y <- (behavior-y)/behavior*100
+behavior <- (sum(df5[df5$Type=="Behaviour","Freq"]))
+y <- (behavior-y)/behavior
 y <- y[!is.infinite(y)]
 
-z <- 1:length(y)
-lo <- loess(y~z)
-plot(y, main="Average progress rate per week", xlab = "Week number",ylab = "Progress rate (%)")
-lines(predict(lo),type="l",col="red")
+# Calculate the progress for week ≥ 3
+cons <- df5[df5$Type=="Cheated","Freq"]+df5[df5$Type=="On time","Freq"]
+cons[1] <- df5[df5$Type=="Behaviour","Freq"][1]
+
+for (i in 4:length(cons)){
+  averageCons <- (cons[i-1]+cons[i-2]+cons[i-3])/3
+  cons[i]= (averageCons - cons[i])/averageCons
+}
+
+# Concatenate the progress in a unique array
+prog <- c(0,y[2:3],cons[4:length(cons)])
+df5 <- unique(df5[c("WeekNumber")])
+df5$Progress <- prog
+
+# return progress rate per week
+
+###### Average progress ######
+avProg <- mean(prog[2:length(cons)])
+
+###### Progress Category #######
+if(avProg <= 0.2){
+  progCat = "low"
+}else if(avProg >= 0.5){
+  progCat = "high"
+}else progCat = "medium"
 
 
 
 
+########################## RATE OF PROGRESS #############################################
+
+# ATTENTION utilisation de prog de la fonction précédente 
+rate <- c()
+rate[1] <- 1
+rate[2] <- 1
+for(i in 3:length(prog)){
+  if(prog[i-1]==0){
+    rate[i] <-  (prog[i] - prog[i-2])/prog[i-2]
+  } else {
+    rate[i] <-  (prog[i] - prog[i-1])/prog[i-1]
+  }
+}
+z <- 1:length(rate)
+
+qplot(z, rate, geom=c("point","smooth"),main="Rate of progress",xlab = "Week Number",ylab = "Rate (%)")
+bestWeek <- which.max(rate)
+# returns the week with the best rate
 
 
 
+########################## AVERAGE CIGARETTE CONSUMPTION ######################################
+
+df6 <- dfLogs[dfLogs$User==user,c("Day","Type","WeekNumber")]
+df6 <- table(df6)
+df6 <- data.frame(df6)  
+df6 <- df6[df6$Type %in% c("Cheated","On time","Behaviour"),c("Day","WeekNumber","Freq")]
+df6 <- df6[df6$Freq!=0,c("Day","WeekNumber","Freq")]
+meanCig <- round(mean(df6$Freq), 2)
+
+# returns the average number of cig per day
+
+df7 <- df6[df6$Day!="Sunday" & df6$Day!="Saturday", c("Day","WeekNumber","Freq")]
+meanCigWeek <- round(mean(df7$Freq), 2)
+
+# returns the average number of cig per day in the week
+
+df8 <- df6[df6$Day=="Sunday" | df6$Day=="Saturday", c("Day","WeekNumber","Freq")]
+meanCigWeekend <- round(mean(df8$Freq), 2)
+
+# returns the average number of cig per day in the week
 
 
 
+########################## MOST SMOKING INTENSITY SLOT #################################
 
 
 
+df9 <- dfLogs[dfLogs$User==user,c("Time","Type")]
+df9 <- df9[df9$Type %in% c("Cheated","On time","Behaviour"),c("Time","Type")]
+df9$Hour <- strftime(df9$Time,format="%H")
+interv <- c(0,6,10,14,18,22,24)
+temp <- cut(as.numeric(df9$Hour), breaks=interv, right = FALSE)
+df9$Hour <- temp
+df9 <- table(df9)
+df9 <- data.frame(df9) 
+df9 <- df9[df9$Freq!=0,c("Hour","Freq")]
+df9 <- aggregate(df9$Freq,by = list(df9$Hour), sum)
+maxCons <- max(df9$x)
+whichMaxCons <- which.max(df9$x)
+slot <- df9[df9$x==maxCons,]$Group.1
+slot <- levels(slot)[whichMaxCons]
+
+df10 <- dfLogs[dfLogs$User==user,c("Time","Type","Day","WeekNumber")]
+df10 <- df10[df10$Type %in% c("Cheated","On time","Behaviour"),c("Time","Type","Day","WeekNumber")]
+df10$Hour <- strftime(df10$Time,format="%H")
+interv <- c(0,6,10,14,18,22,24)
+temp <- cut(as.numeric(df10$Hour), breaks=interv, right = FALSE)
+df10$Hour <- temp
+df10 <- df10[df10$Hour==as.numeric(slot),c("Type","Day","WeekNumber","Freq")]
+df10 <- table(df10)
+df10 <- data.frame(df10) 
+df10 <- df10[df10$Freq!=0,c("Hour","Freq")]
 
 
+########################## CIGARETTE CONSUMPTION PER WEEKDAY #################################
+week = 1
 
-observeEvent(input$uploadButton,{dfLogs <- read.csv("/Users/maximiliensock/ibriquet/logs.csv",
-                                                    header = TRUE,
-                                                    sep = ";",fileEncoding = "MACROMAN")
+df11 <- dfLogs[dfLogs$User==user & dfLogs$WeekNumber==week,c("Day","Type")]
+df11 <- table(df11)
+df11 <- data.frame(df11)  
+df11 <- df11[df11$Type %in% c("Cheated","On time","Behaviour"),c("Day","Freq")]
+df11 <- aggregate(df11$Freq,by = list(df11$Day), sum)
+df11$Group.1 <- factor(df11$Group.1, levels = c("Monday","Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))
+df11 <- df11[order(df11$Group.1), ]
+
+# plot the consumption per day per week
 
 
-dfSurvey <- read_excel("/Users/maximiliensock/ibriquet/surveydataece.xlsx")
-readCSV(dfLogs,dfSurvey)
-})
+########################## MEAN AND STD OF CIG CONS PER WEEKDAY #################################
+
+df12 <- dfLogs[dfLogs$User==user,c("WeekNumber","Day","Type")]
+df12 <- data.frame(table(df12))
+df12 <- df12[df12$Type %in% c("Cheated","On time","Behaviour"),c("WeekNumber","Day","Freq")]
+df12 <- df12[df12$Freq!=0,c("Day","Freq")]
+df12$Day <- factor(df12$Day, levels = c("Monday","Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))
+df12 <- df12[order(df12$Day), ]
+
+qplot(Day, Freq, data = df12, geom=c("boxplot"),main="Mean and Std of Cigarette Consumption per weekday")
 
 
+########################## CIGARETTES PER WEEKDAY PER TIME SLOTS #################################
 
 
+df13 <- dfLogs[dfLogs$User==user & dfLogs$WeekNumber==week,c("Time","Day","Type")]
+df13 <- data.frame(table(df13))
+df13$Hour <- strftime(df13$Time,format="%H")
+interv <- c(0,2,4,6,8,10,12,14,16,18,20,22,24)
+temp <- cut(as.numeric(df13$Hour), breaks=interv, right = FALSE)
+df13$Hour <- temp
+df13 <- df13[df13$Type %in% c("Cheated","On time","Behaviour"),c("Hour","Day","Freq")]
+df13 <- aggregate(df13$Freq,by = list(df13$Hour,df13$Day), sum)
+ggplot(data = df13, aes( x = Group.2, y = x , fill=Group.1) )+geom_bar( stat = 'identity',position = 'dodge'  )+ggtitle("Cigarettes per weekday per time slot")
 
+
+########################## MODE USAGE PER WEEK #################################
+
+
+df14 <- dfLogs[dfLogs$User==user & dfLogs$WeekNumber==week,c("Type")]
+df14 <- data.frame(table(df14))
+ggplot(data = df14, aes( x = df14, y = Freq ) )+geom_bar( stat = 'identity',position = 'dodge'  )+ggtitle("Mode usage per week")
+
+
+########################## CIGARETTES PER WEEKDAY PER TIME SLOTS #################################
+
+df15 <- dfLogs[dfLogs$User==user & dfLogs$WeekNumber==week,c("Day","Type")]
+df15 <- data.frame(table(df15))
+df15 <- df15[df15$Type %in% c("Cheated","On time","Behaviour"),c("Day","Freq")]
+df15 <- aggregate(df15$Freq,by = list(df15$Day), sum)
+df15$Group.1 <- factor(df15$Group.1, levels = c("Monday","Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))
+df15 <- df15[order(df15$Group.1), ]
+ggplot(data = df15, aes( x = Group.1, y = x ) )+geom_bar( stat = 'identity',position = 'dodge'  )+ggtitle("Cigarettes per weekday")
 
 
 

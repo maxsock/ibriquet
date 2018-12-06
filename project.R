@@ -13,6 +13,7 @@ library(ggplot2)
 #setwd("C:/Users/Lisa/Documents/GitHub/ibriquet")
 source("functions.R")
 source("cleaning.R")
+source("singleUser.R")
 theme_update(plot.title = element_text(hjust = 0.5,face = "bold"))
 
 options(stringsAsFactors = FALSE)
