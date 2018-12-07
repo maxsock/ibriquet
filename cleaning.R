@@ -28,8 +28,11 @@ cleanLogs <- function(df){
   df <- df[df$User!="Wilfried Piaget",]
   
   # Delete users who didn't use the lighter for more than 4 weeks
- 
-  
+  tempLength <-  aggregate(df$WeekNumber, by = list(df$User), max)
+  tempLength <- plyr::rename(tempLength,c("Group.1"="User"))
+  df <- merge(x=df,y=tempLength, by=c("User"))
+  df <- plyr::rename(df,c("x"="TotalWeek"))
+
   # Delete users where there's 6 times more "auto skipped" than "on time" (not using the lighter properly)
   skipped <- data.frame(table(df[df$Type=="Auto skipped",c("User")]))
   time <- data.frame(table(df[df$Type=="On time",c("User")]))

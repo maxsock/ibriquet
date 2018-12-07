@@ -65,24 +65,86 @@ uploadPage <- fluidPage(
     
   )
 )
+panel <- fluidRow( column(4,selectInput("name",
+                                        "User",
+                                        c("Select User"))))
+panelClassic <- fluidRow(
+                          column(8,sliderInput("weekNumber", "Week Number:",
+                                                min = 0, max = 21,
+                                                value = 0)))
+info <- fluidRow(valueBoxOutput("category"),
+                 valueBoxOutput("savings"),
+                 valueBoxOutput("avProg"),
+                 valueBoxOutput("avEng"),
+                 valueBoxOutput("bRate"),
+                 valueBoxOutput("cigWeek"),
+                 valueBoxOutput("cigWeekend"),
+                 valueBoxOutput("cig"),
+                 valueBoxOutput("mostSmoked"))
+classic <- fluidRow(box(
+                    title = "Cigarette consumption per week"
+                    ,status = "primary"
+                    ,solidHeader = TRUE 
+                    ,plotOutput("cigCons", height = "300px"))
+                    ,
+                    box(
+                      title = "Mean and Std of Cigarette Consumption per weekday"
+                      ,status = "primary"
+                      ,solidHeader = TRUE 
+                      ,plotOutput("meanCigCons", height = "300px")),
+                    box(
+                      title = "Overall Progress"
+                      ,status = "primary"
+                      ,solidHeader = TRUE 
+                      ,plotOutput("overallProg", height = "300px")),
+                    box(
+                      title = "Rate of progress"
+                      ,status = "primary"
+                      ,solidHeader = TRUE 
+                      ,plotOutput("progRate", height = "300px"))
+                    )
+week <-  fluidRow(box(
+                  title = "Cigarette per weekday per time slot"
+                  ,status = "primary"
+                  ,solidHeader = TRUE 
+                  ,plotOutput("cigSlot", height = "300px")),
+                  box(
+                    title = "Comparison of cigarettes consumption between weeks "
+                    ,status = "primary"
+                    ,solidHeader = TRUE 
+                    ,plotOutput("cigPerWeek", height = "300px")),
+                  box(
+                    title = "Mode usage per week"
+                    ,status = "primary"
+                    ,solidHeader = TRUE 
+                    ,plotOutput("modeWeek", height = "300px"))
+                  )
+                
+engagement <- fluidRow(box(
+                        title = "Overall Engagement"
+                        ,status = "primary"
+                        ,solidHeader = TRUE 
+                        ,plotOutput("overallEng", height = "300px")))
+
+allDays <- fluidRow(box(
+                  title = "Mode Usage over all period"
+                  ,status = "primary"
+                  ,solidHeader = TRUE 
+                  ,plotOutput("overallMode", height = "300px")))
+
 singleUserPage <- fluidPage(
-  titlePanel("Single User"),
-  panel <- fluidRow( column(4,selectInput("name",
-                                 "User",
-                                 c("Select User"))),
-                     column(8,sliderInput("weekNumber", "Week Number:",
-                                 min = 0, max = 4,
-                                 value = 0))),
-  info <- fluidRow(valueBoxOutput("category"),
-                   valueBoxOutput("savings"),
-                   valueBoxOutput("avProg"))
-                   
+  fluidRow(
+  box(width = "100px",panel),
+  tabBox(width = "100%",
+      tabPanel("Information",info),
+      tabPanel("Classic",classic),
+      tabPanel("Week",panelClassic,week),
+      tabPanel("Engagement",engagement),
+      tabPanel("All Days",allDays)
+      
   
-  )
-
-
-
-
+  ))
+ )
 
 ui <- dashboardPage(
   dashboardHeader(title = "iBriquet dashboard"),
@@ -105,27 +167,41 @@ server <- function(input, output, session) {
     # Clean the data frames
     dfLogs <- cleanLogs(dfLogs);
     dfSurvey <- cleanSurvey(dfSurvey);
-    
   
     # Graph per user
     observeEvent(input$name,{
       if(input$name!="Select User"){
+        updateSliderInput(session,"weekNumber",value=0)
         output$category <- ageCat(dfLogs,dfSurvey,input$name)
         output$savings <- cigSaved(dfLogs,input$name)
         output$avProg <- averageProgress(dfLogs,input$name)
+        output$avEng <- averageEngagement(dfLogs,input$name)
+        output$bRate <- bestRate(dfLogs,input$name)
+        output$cigWeek <- averageCons(dfLogs,input$name,"week")
+        output$cigWeekend <- averageCons(dfLogs,input$name,"weekend")
+        output$cig <- averageCons(dfLogs,input$name," ")
+        output$mostSmoked <- mostSmoked(dfLogs,input$name) 
+        output$overallProg <- overallProgress(dfLogs,input$name) 
+        output$progRate <- progRate(dfLogs,input$name)
+        output$meanCigCons <- meanCigCons(dfLogs,input$name)
+        output$cigCons <- cigCons(dfLogs,input$name)
+        output$overallEng <- overallEngagement(dfLogs,input$name)
+        output$overallMode <- overallMode(dfLogs,input$name)
+        
       }
         
     })
-    observeEvent(input$weekNumber,{
+    observeEvent({input$weekNumber
+                 input$name},{
       if(input$name!="Select User"){
-      output$distPlot <- plotFunction(dfLogs,input$name,input$weekNumber)
-      output$lastWeek <- lastWeekCons(dfLogs,input$name,input$weekNumber)
+        values$maxWeek <- getmaxWeek(dfLogs,input$name)
+        updateSliderInput(session,"weekNumber",max=values$maxWeek)
+        output$cigSlot <- cigSlot(dfLogs,input$weekNumber,input$name)
+        output$cigPerWeek <- cigWeek(dfLogs,input$weekNumber,input$name)
+        output$modeWeek <- modeWeek(dfLogs,input$weekNumber,input$name)
       }
     })
-    observeEvent({input$type
-      input$weekNumber2},{
-      output$weekTypes <- weeklyTypes(dfLogs,input$weekNumber2,input$type)
-    })
+   
     
     # Fill the select input with the filtered names of users
     updateSelectInput(session, "name",
