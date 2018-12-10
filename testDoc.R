@@ -299,5 +299,18 @@ ggplot(data = df18, aes( x = Dateday, y = Freq, fill = Type ) )+geom_bar( stat =
 
 
 
-user="Hervé Dupuis"
+df <- dfLogs[dfLogs$Type %in% c("Behaviour","Cheated","On time"),c("User","WeekNumber","Type")]
+df <- table(df)
+df <- data.frame(df)  
+df <- df[df$Freq!=0,]
+ref <- df[df$Type=="Behaviour","Freq"]
+df <- df[df$WeekNumber!=0,]
+
+saved <- df[df$Type=="Behaviour","Freq"] - df[df$Type=="Cheated","Freq"] - df[df$Type=="On time","Freq"]  
+df <- aggregate(df$Freq,by = list(WeekNumber=df$WeekNumber), sum)
+
+length(unique(dfLogs$User))
+
+dftest <- dfLogs[dfLogs$Type %in% c("Behaviour","Cheated","On time"),"User"]
+length(dftest)
 

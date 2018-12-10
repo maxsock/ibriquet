@@ -126,11 +126,15 @@ progressCat <- function(dfLogs,user,avProg){
 }
 
 weeklyEngagement <- function(dfLogs,user){
-  df <- dfLogs[dfLogs$User==user & dfLogs$WeekNumber!=0,c("WeekNumber","Type")]
+  df <- dfLogs[dfLogs$User==user & dfLogs$WeekNumber!=0,c("TotalWeek","WeekNumber","Type")]
   df <- data.frame(table(df))
-  week <- unique(df$WeekNumber)
-  for (i in 1:length(week)){
+  week <- unique(df$TotalWeek)
+  week <- 1:levels(week)
+  engagementWeek <- c()
+  for (i in 1:week[length(week)]){
     engagementWeek[i] <- 1 - max(0,df[df$Type=="Auto skipped" & df$WeekNumber==i,"Freq"])/(max(0,df[df$Type=="Auto skipped" & df$WeekNumber==i,"Freq"])+ max(0,df[df$Type=="Skipped" & df$WeekNumber==i,"Freq"]) + max(0,df[df$Type=="On time" & df$WeekNumber==i,"Freq"]) + max(0,df[df$Type=="Snoozed" & df$WeekNumber==i,"Freq"]) )
+    if(is.na(engagementWeek[i]))
+      engagementWeek[i] <- 0
   }
   engWeek <- cbind.data.frame(week,engagementWeek)
   return(engWeek)
@@ -154,7 +158,7 @@ progressRate <- function(dfLogs,user){
   rate[2] <- 0
   prog <- progress(dfLogs,user)$Progress
   for(i in 3:length(prog)){
-    if(prog[i-1]==0){
+    if(prog[i-1]>=-0.01 && prog[i-1]<=0.01){
       rate[i] <-  (prog[i] - prog[i-2])/prog[i-2]
     } else {
       rate[i] <-  (prog[i] - prog[i-1])/prog[i-1]
@@ -340,7 +344,22 @@ cigWeek <- function(dfLogs,week,user){
   df <- aggregate(list(Freq=df$Freq),by = list(Day=df$Day), sum)
   df$Day <- factor(df$Day, levels = c("Monday","Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))
   df <- df[order(df$Day), ]
-  return(renderPlot({qplot(df$Day, df$Freq, geom=c("point","smooth"),group=1,xlab = "Day",ylab = "Consumption")}))
+  return(renderPlot({ggplot(data = df, aes( x = Day, y = Freq , fill=Day) )+geom_bar( stat = 'identity',position = 'dodge')}))
+  
+}
+
+cigWeekComp <- function(dfLogs,user){
+  df <- dfLogs[dfLogs$User==user,c("Day","WeekNumber","Type")]
+  if(nrow(df)==0){
+    return(NULL)
+  }
+  df <- data.frame(table(df))
+  df <- df[df$Type %in% c("Cheated","On time","Behaviour"),c("Day","WeekNumber","Freq")]
+  df <- df[df$Freq!=0,c("Day","WeekNumber","Freq")]
+  df <- aggregate(list(Freq=df$Freq),by = list(Day=df$Day, WeekNumber=df$WeekNumber), sum)
+  df$Day <- factor(df$Day, levels = c("Monday","Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))
+  df <- df[order(df$Day), ]
+  return(renderPlot({ggplot(data = df, aes( x = Day, y = Freq , fill=WeekNumber) )+geom_bar( stat = 'identity',position = 'dodge')}))
   
 }
 
@@ -360,11 +379,37 @@ overallEngagement <- function(dfLogs,user){
   
 }
 
+engDay <- function(dfLogs,user){
+  df <- dfLogs[dfLogs$User==user & dfLogs$WeekNumber!=0,c("Dateday","Type")]
+  df <- data.frame(table(df))
+  day <- unique(df$Dateday)
+  engagementDay <- c()
+  for (i in day){
+    engagementDay[i] <- 1 - max(0,df[df$Type=="Auto skipped" & df$Dateday==i,"Freq"])/(max(0,df[df$Type=="Auto skipped" & df$Dateday==i,"Freq"])+ max(0,df[df$Type=="Skipped" & df$Dateday==i,"Freq"]) + max(0,df[df$Type=="On time" & df$Dateday==i,"Freq"]) + max(0,df[df$Type=="Snoozed" & df$Dateday==i,"Freq"]) )
+    if(is.na(engagementDay[i])) engagementDay=0;  
+  }
+  engDay <- cbind.data.frame(day,engagementDay)
+  return(renderPlot({qplot(engDay$day,engDay$engagementDay, geom=c("point", "smooth"), group=1, xlab = "Date", ylab = "Engagement rate") + scale_y_continuous(labels=scales::percent)+theme(axis.text.x = element_text(angle = 70,hjust=1))}))
+}
+
 overallMode <- function(dfLogs,user){
   type=c("Cheated","On time","Behaviour","Skipped","Auto skipped","Friend")
   df <- dfLogs[dfLogs$Type %in% type & dfLogs$User==user,c("Dateday","Type")]
   df <- data.frame(table(df))
   df <- df[df$Freq!=0,]
   return(renderPlot({ggplot(data = df, aes( x = Dateday, y = Freq, fill = Type ) )+geom_bar( stat = 'identity',position = 'dodge'  )+theme(axis.text.x = element_text(angle = 60,hjust=1))}))
+  
+}
+
+overallCons <- function(dfLogs,user){
+  df <- dfLogs[dfLogs$User==user,c("Dateday","Type")]
+  if(nrow(df)==0){
+    return(NULL)
+  }
+  df <- data.frame(table(df))
+  df <- df[df$Type %in% c("Cheated","On time","Behaviour"),c("Dateday","Freq")]
+  df <- df[df$Freq!=0,c("Dateday","Freq")]
+  df <- aggregate(list(Freq=df$Freq),by = list(Dateday=df$Dateday), sum)
+  return(renderPlot({qplot(df$Dateday,df$Freq, geom=c("point", "smooth"), group=1, xlab = "Date", ylab = "Cigarette consumption") + theme(axis.text.x = element_text(angle = 90,hjust=1))}))
   
 }

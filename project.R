@@ -4,8 +4,8 @@ library(readxl)
 library(shinyjs)
 library(lubridate)
 library(data.table)
-library(dplyr)
 library(plyr)
+library(dplyr)
 library(bda)
 library(tools)
 library(stringr)
@@ -14,13 +14,15 @@ library(ggplot2)
 source("functions.R")
 source("cleaning.R")
 source("singleUser.R")
+source("allUsers.R")
+
 theme_update(plot.title = element_text(hjust = 0.5,face = "bold"))
 
 options(stringsAsFactors = FALSE)
 sidebar <- dashboardSidebar(
   sidebarMenu(
     menuItem("Upload File", icon = icon("upload"), tabName = "upload"),
-   # menuItem("All Users", tabName = "allUsers", icon = icon("users")),
+    menuItem("All Users", tabName = "allUsers", icon = icon("users")),
     menuItem("Single User", icon = icon("user"), tabName = "singleUser")
   )
 )
@@ -112,6 +114,11 @@ week <-  fluidRow(box(
                     title = "Comparison of cigarettes consumption between weeks "
                     ,status = "primary"
                     ,solidHeader = TRUE 
+                    ,plotOutput("cigComp", height = "300px")),
+                  box(
+                    title = "Cigarettes consumption per weekday"
+                    ,status = "primary"
+                    ,solidHeader = TRUE 
                     ,plotOutput("cigPerWeek", height = "300px")),
                   box(
                     title = "Mode usage per week"
@@ -124,13 +131,23 @@ engagement <- fluidRow(box(
                         title = "Overall Engagement"
                         ,status = "primary"
                         ,solidHeader = TRUE 
-                        ,plotOutput("overallEng", height = "300px")))
+                        ,plotOutput("overallEng", height = "300px")),
+                       box(
+                         title = "Engagement per day"
+                         ,status = "primary"
+                         ,solidHeader = TRUE 
+                         ,plotOutput("engDay", height = "300px")))
 
 allDays <- fluidRow(box(
                   title = "Mode Usage over all period"
                   ,status = "primary"
                   ,solidHeader = TRUE 
-                  ,plotOutput("overallMode", height = "300px")))
+                  ,plotOutput("overallMode", height = "300px")),
+                  box(
+                    title = "Cigarettes consumption over all period"
+                    ,status = "primary"
+                    ,solidHeader = TRUE 
+                    ,plotOutput("overallCons", height = "300px")))
 
 singleUserPage <- fluidPage(
   fluidRow(
@@ -146,12 +163,53 @@ singleUserPage <- fluidPage(
   ))
  )
 
+allUsersInfo <- fluidRow(valueBoxOutput("totCigSaved"),
+                 valueBoxOutput("totAvgCig"))
+
+
+allUsersClassic <- fluidRow(box(
+                            title = "Average progress of all users"
+                            ,status = "primary"
+                            ,solidHeader = TRUE 
+                            ,plotOutput("totAvgProg", height = "300px")),
+                            box(
+                              title = "Mean and std of cigarette consumption per weekday "
+                              ,status = "primary"
+                              ,solidHeader = TRUE 
+                              ,plotOutput("totCigCons", height = "300px")),
+                              box(
+                                title = "Cigarettes per weekday per time slots "
+                                ,status = "primary"
+                                ,solidHeader = TRUE 
+                                ,plotOutput("totCigSlot", height = "300px")),
+                            box(
+                              title = "Average rate of progress of all users "
+                              ,status = "primary"
+                              ,solidHeader = TRUE 
+                              ,plotOutput("totProgRate", height = "300px"))
+)
+
+allUsersEngagement <- fluidRow(box(
+                              title = "Engagement over all period"
+                              ,status = "primary"
+                              ,solidHeader = TRUE 
+                              ,plotOutput("totEng", height = "300px")))
+
+allUsersPage <- fluidPage(
+  fluidRow(
+    tabBox(width = "100%",
+           tabPanel("Information",allUsersInfo),
+           tabPanel("Classic",allUsersClassic),
+           tabPanel("Engagement",allUsersEngagement)
+    ))
+)
+
 ui <- dashboardPage(
   dashboardHeader(title = "iBriquet dashboard"),
   sidebar,
   dashboardBody(tabItems(
     tabItem(tabName = "upload",uploadPage),
-    #tabItem(tabName = "allUsers",allUsersPage),
+    tabItem(tabName = "allUsers",allUsersPage),
     tabItem(tabName = "singleUser",singleUserPage)
   ))
 )
@@ -167,6 +225,15 @@ server <- function(input, output, session) {
     # Clean the data frames
     dfLogs <- cleanLogs(dfLogs);
     dfSurvey <- cleanSurvey(dfSurvey);
+    
+    
+    output$totCigSaved <- totCigSaved(dfLogs)
+    output$totAvgCig <- avgCig(dfLogs)
+    output$totAvgProg <- totAvgProg(dfLogs)
+    output$totCigCons <- totCigCons(dfLogs)
+    output$totCigSlot <- totCigSlot(dfLogs)
+    output$totProgRate <- totProgRate(dfLogs)
+    output$totEng <- totEng(dfLogs)
   
     # Graph per user
     observeEvent(input$name,{
@@ -185,8 +252,11 @@ server <- function(input, output, session) {
         output$progRate <- progRate(dfLogs,input$name)
         output$meanCigCons <- meanCigCons(dfLogs,input$name)
         output$cigCons <- cigCons(dfLogs,input$name)
+        output$cigComp <- cigWeekComp(dfLogs,input$name)
         output$overallEng <- overallEngagement(dfLogs,input$name)
+        output$engDay <- engDay(dfLogs,input$name)
         output$overallMode <- overallMode(dfLogs,input$name)
+        output$overallCons <- overallCons(dfLogs,input$name)
         
       }
         
